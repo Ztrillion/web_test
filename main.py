@@ -12,6 +12,7 @@ data = response.json()
 def get_btc_data():
     btc_response = requests.get(BINANCE_API + TIMETICKER, params=BTCUSDT)
     return btc_response.json()
+
 def get_all_data():
     all_response = requests.get(BINANCE_API + TIMETICKER)
     return all_response.json()
