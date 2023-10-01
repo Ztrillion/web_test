@@ -1,21 +1,61 @@
 import streamlit as st
-import requests
-
-BINANCE_API='https://api.binance.com'
-PING='/api/v1/ping'
-TIMETICKER='/api/v1/ticker/24hr'
+import requests, time
+import pandas as pd
+BINANCE_API = 'https://api.binance.com'
+TIMETICKER = '/api/v3/ticker/24hr'
 BTCUSDT = {'symbol': 'BTCUSDT'}
 
-btc_re = requests.get(BINANCE_API+TIMETICKER)
+# Binance API로부터 비트코인 정보 가져오기
+response = requests.get(BINANCE_API + TIMETICKER)
+data = response.json()
 
-st.title('Front 테스트')
-title = st.text_input('종목을 입력해 주세요',)
+def get_btc_data():
+    btc_response = requests.get(BINANCE_API + TIMETICKER, params=BTCUSDT)
+    return btc_response.json()
+def get_all_data():
+    all_response = requests.get(BINANCE_API + TIMETICKER)
+    return all_response.json()
 
-if st.button('정보 확인'):
-    with st.spinner('Wait for it...'):
-        if btc_re.json()[0]["symbol"] == "BNBBTC":
-            st.write(f'{title}종목의 정보입니다. : ', btc_re.json()[0]["symbol"])
-        else : 
-            st.write(f'{title}종목의 정보입니다. : ', btc_re.json()[3])
+st.title('비트코인 투자정보')
+btc_data = get_btc_data()
+st.markdown(
+    f"<div style='display: flex; justify-content: start;'>"
+    f"<p style='margin: 0; margin-right: 50px'>최근 거래 가격: <strong>{float(btc_data['lastPrice']):.2f} USDT</strong></p>"
+    f"<p style='margin: 0;'>24시간 거래량: <strong>{float(btc_data['volume']):.2f} BTC</strong></p>"
+    f"</div>", 
+    unsafe_allow_html=True
+)
 
-    
+ 
+tradingview_embed_url = "https://www.tradingview.com/widgetembed/?frameElementId=tradingview_7ed12&symbol=BINANCE:BTCUSDT&interval=D&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=light&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&utm_source=www.tradingview.com&utm_medium=widget_new&utm_campaign=chart&utm_term=BINANCE:BTCUSDT"
+st.markdown(f'<iframe src="{tradingview_embed_url}" style="width: 100%; height: 500px;"></iframe>', unsafe_allow_html=True)
+
+st.subheader('BINANCE 등락률 TOP10')
+table_container = st.empty()
+
+# 5초 간격으로 갱신
+
+while True:
+
+    all_tickers = get_all_data()
+
+    usdt_tickers = [ticker for ticker in all_tickers if 'USDT' in ticker['symbol']]
+
+    top_usdt_tickers = sorted(usdt_tickers, key=lambda x: float(x['priceChangePercent']), reverse=True)[:10]
+
+    data = [
+        [
+            ticker['symbol'],
+            f"$ {float(ticker['lastPrice']):,.8f} USDT" if float(ticker['lastPrice']) < 0.0001 else f"$ {float(ticker['lastPrice']):,.4f} USDT",
+            f"{int(round(float(ticker['priceChangePercent'])))}%",
+            f"$ {float(ticker['quoteVolume']):,.2f} USDT"
+        ] for ticker in top_usdt_tickers
+    ]
+    df = pd.DataFrame(data, columns=['종목', '가격(USDT)', '등락률(%)', '거래량(USDT)'])
+
+    table_container.table(df)
+    time.sleep(1)
+
+
+
+
